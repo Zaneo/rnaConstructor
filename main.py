@@ -6,18 +6,22 @@ import math
 
 from pprint import pprint
 
-
+logging.basicConfig()
 logger = logging.getLogger("rnaConstructor")
+logger.setLevel(logging.INFO)
 
 parser = argparse.ArgumentParser(description="Optimize RNA sequence for target amino acids by mapping RNA codons")
 
+parser.add_argument('-o', '--output-file', type=str, help="Filepath to output to")
+parser.add_argument('-f', "--file-input", type=str, help="File to read data from")
 parser.add_argument('-p', "--property-sequence", type=str, help="Biochemical property sequence")
-parser.add_argument('-a', "--amino-sequence", type=str, help="Amino acid chain")
-parser.add_argument('-s', "--supported-codons", type=str, default=None, help="List of supported codons for target")
+parser.add_argument('-a', "--amino-sequence", type=str, nargs='?', const=True, help="Amino acid chain")
+parser.add_argument('-s', "--supported-codons", type=str,nargs='?', const=True, default=None, help="List of supported codons for target")
 parser.add_argument('-e', "--excluded-codons", type=str, default=None, help="List of codons to exclude for target")
 parser.add_argument('-i', "--iterations", type=int, default=1, help="Number of iterations to attempt")
 parser.add_argument('-d', "--duplicate", type=int,default=1, help="Number of times to duplicate the input sequence")
-
+parser.add_argument('--decode', type=str, nargs='?', const=True, help="XNA sequence to decode into amino acid chain")
+parser.add_argument('--short-tags', action='store_true',help="Whether or not to use short tags in processing.")
 
 
 biochem_short_label =  {
@@ -36,6 +40,32 @@ biochem_amino_pairs = {
     'Stop': ['Stop_Ochre', 'Stop_Amber', 'Stop_Opal']
 }
 
+amino_short_label = {
+    'Phe': 'F',
+    'Leu': 'L',
+    'Ile': 'I',
+    'Met': 'M',
+    'Val': 'V',
+    'Ser': 'S',
+    'Pro': 'P',
+    'Thr': 'T',
+    'Ala': 'A',
+    'Tyr': 'Y',
+    'Stop_Ochre': '_e_',
+    'Stop_Amber': '_r_',
+    'His': 'H',
+    'Gln': 'Q',
+    'Asn': 'N',
+    'Lys': 'K',
+    'Asp': 'D',
+    'Glu': 'E',
+    'Cys': 'C',
+    'Stop_Opal': '_l_',
+    'Trp': 'W',
+    'Arg': 'R',
+    'Gly': 'G'
+}
+
 amino_codon_pairs = {
     'Phe': ['UUU','UUC'],
     'Leu': ['UUA','UUG', 'CUU','CUC', 'CUA', 'CUG'],
@@ -47,7 +77,7 @@ amino_codon_pairs = {
     'Thr': ['ACU', 'ACC', 'ACA', 'ACG'],
     'Ala': ['GCU', 'GCC', 'GCA', 'GCG'],
     'Tyr': ['UAU', 'UAC'],
-    'Stop_Ochre': ['UUA'],
+    'Stop_Ochre': ['UAA'],
     'Stop_Amber': ['UAG'],
     'His': ['CAU', 'CAC'],
     'Gln': ['CAA', 'CAG'],
@@ -62,11 +92,13 @@ amino_codon_pairs = {
     'Gly': ['GGU', 'GGC', 'GGA', 'GGG']
 }
 
-class RNAChainBuilder(object):
-    def __init__(self):
-        pass
+codon_amino_pair = {}
+for amino, codon_list in amino_codon_pairs.items():
+    for codon in codon_list:
+        codon_amino_pair[codon] = amino
 
-    def longestRunLength(self, input_string: str) ->int:
+
+def longestRunLength(input_string: str) ->int:
         repeatedChar = ""
         longestRun = -1
         currentChar =""
@@ -81,6 +113,39 @@ class RNAChainBuilder(object):
             currentRun+=1
         return longestRun, repeatedChar
 
+
+
+class AminoAcidDecoder(object):
+    def __init__(self):
+        pass
+
+    def decode_xna(self, xna_sequence: str, useShortTags: bool) -> str:
+        amino_acid_chain = []
+        logger.info(f"Longest repetition was: {longestRunLength(xna_sequence)}")
+        for i in range(0,len(xna_sequence), 3):
+            tag = xna_sequence[i:i+3].upper().replace('T','U')
+            try:
+                amino = codon_amino_pair[tag]
+            except KeyError:
+                logger.error(f"Unkown codon: {tag}")
+                return None
+            if useShortTags:
+                try:
+                    amino = amino_short_label[amino]
+                except KeyError:
+                    logger.error(f"No label for amino acid {amino}")
+                    return None
+            amino_acid_chain.append(amino)
+            
+        if useShortTags:
+            join_char = ""
+        else:
+            join_char = ","
+        return join_char.join(amino_acid_chain)
+
+class RNAChainBuilder(object):
+    def __init__(self):
+        pass
 
     def build_best_RNA_chain_from_property(self, property_list: List[str], useable_biochem_amino_pairs: Dict[str, List[str]],  useable_amino_codon_pairs: Dict[str, List[str]], iterations:int) -> str:
         best_result = self.build_RNA_chain_from_property(property_list, useable_biochem_amino_pairs,useable_amino_codon_pairs, iterations) 
@@ -132,7 +197,7 @@ class RNAChainBuilder(object):
             rna_chain+= useable_amino_codon_pairs[amino][codon_idx]
 
         # return rna_chain, self.longestRepeatedSubstring(rna_chain)
-        return rna_chain, self.longestRunLength(rna_chain)
+        return rna_chain, longestRunLength(rna_chain)
 
 
 def get_supported_amino_codon_pairs(supported_codons: str, excluded_codons: str) -> Dict[str, List[str]]:
@@ -209,14 +274,54 @@ if __name__ == "__main__":
     else:
         useable_amino_codon_pairs = get_supported_amino_codon_pairs(args.supported_codons, args.excluded_codons) 
 
-    if args.amino_sequence is not None:
-        if (args.duplicate > 1):
-             args.amino_sequence += ("," + args.amino_sequence.strip("'")) * (args.duplicate -1)
-        build_amino_sequence(args.amino_sequence, useable_amino_codon_pairs, args.iterations)
+    if args.decode is not None:
+        decoder = AminoAcidDecoder()
+        if args.file_input is not None:
+            try:
+                with open(args.file_input, 'r') as r:
+                    dna_lines = r.readlines()
+            except FileNotFoundError:
+                logger.error(f"Could not find specified file: {args.file_input}")
+        else:
+            dna_lines = [args.decode.strip("'")]
+        for line in dna_lines:
+            result = decoder.decode_xna(line, args.short_tags)
+            if args.output_file:
+                with open(args.output_file, "a+") as w:
+                    w.write(result)
+            else:
+                pprint(result)
     
+    if args.amino_sequence is not None:
+        if args.file_input is not None:
+            try:
+                with open(args.file_input, 'r') as r:
+                    amino_lines = r.readlines()
+            except FileNotFoundError:
+                logger.error(f"Could not find specified file: {args.file_input}")
+                exit(1)
+        else:
+            amino_lines = [args.amino_sequence]
+        
+        for line in amino_lines:
+            if (args.duplicate > 1):
+                line += ("," + line.strip("'")) * (args.duplicate -1)
+            build_amino_sequence(line, useable_amino_codon_pairs, args.iterations)
+
+ 
     if args.property_sequence is not None:
         useable_biochem_amino_pairs = get_supported_biochem_amino_pairs(useable_amino_codon_pairs)
-        if (args.duplicate > 1):
-            args.property_sequence = args.property_sequence.strip("'")
-            args.property_sequence += ("," + args.property_sequence.strip("'")) * (args.duplicate -1)
-        build_property_sequence(args.property_sequence, useable_biochem_amino_pairs, useable_amino_codon_pairs, args.iterations)
+        if args.file_input is not None:
+            try:
+                with open(args.file_input, 'r') as r:
+                    property_lines = r.readlines()
+            except FileNotFoundError:
+                logger.error(f"Could not find specified file: {args.file_input}")
+                exit(1)
+        else:
+            property_lines = [args.property_sequence]
+
+        for line in amino_lines:
+            if (args.duplicate > 1):
+                line += ("," + line.strip("'")) * (args.duplicate -1)
+            build_property_sequence(line, useable_biochem_amino_pairs, useable_amino_codon_pairs, args.iterations)
