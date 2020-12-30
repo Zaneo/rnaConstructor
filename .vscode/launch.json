@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Short amino acid chain",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "args": ["-a='Phe,Leu,Ile,Ile,Ile,Ile'", "-s='UUU,CUU,AUG,AUA,AUC'"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Duplicated biochemistry chain",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            //"args": ["-a='Asp,Phe,Asp,Leu,Asp,Ile,Asp,Met,Asp,Vla,Asp,Pro,Asp,Ala,Asp,Trp,Asp,Gly'", "-s='GCU,GCC,GCA,GGU,GGC,GGA,CAG,CAA,UCU,UCA,UCC,CCU,CCC,CCA,GUU,GUA,AAU,AAC,AAA,AAG,AUU,AUC,UUA,UUG,UAU,UAC'"],
+            //"args": ["-i=100", "-a='Glu,Phe,Asp,Leu,Glu,Ile,Asp,Met,Glu,Val,Asp,Pro,Glu,Ala,Asp,Trp,Glu,Gly'", "-e='UCG,CUC,CCG,UTU,GUC,GUG,GCG,GGG'"],
+            "args": ["-i=100","-d=100", "-p='A,NP'", "-e='UCG,CUC,CCG,UTU,GUC,GUG,GCG,GGG'"],
+        }
+    ]
+}
